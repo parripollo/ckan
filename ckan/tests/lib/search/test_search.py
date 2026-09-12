@@ -66,6 +66,23 @@ def test_04_delete_package_from_dict():
     assert query.run({"q": ""})["count"] == 1
 
 
+@pytest.mark.usefixtures("clean_db", "clean_index")
+def test_numeric_ranges_on_json_fields_compare_as_numbers():
+    """Extras are stored as strings; a numeric bound must not compare
+    them as text ("999" > "2000")."""
+    factories.Dataset(name="year-999", extras=[{"key": "year", "value": "999"}])
+    factories.Dataset(name="year-2026", extras=[{"key": "year", "value": "2026"}])
+    factories.Dataset(name="year-soon", extras=[{"key": "year", "value": "soon"}])
+
+    found = helpers.call_action("package_search",
+                                fq="extras_year:[2000 TO 2030]")
+    assert [d["name"] for d in found["results"]] == ["year-2026"]
+    found = helpers.call_action("package_search", fq="extras_year:{* TO 1000}")
+    assert [d["name"] for d in found["results"]] == ["year-999"]
+    found = helpers.call_action("package_search", fq="extras_year:[* TO *]")
+    assert found["count"] == 3
+
+
 def test_local_params_not_allowed_by_default():
 
     query = search.query_for(model.Package)

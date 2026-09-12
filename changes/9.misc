@@ -1,0 +1,1 @@
+Numeric range bounds on JSON fields of the search index (extras and fields added at index time) compare as numbers, not as text.
