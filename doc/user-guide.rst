@@ -547,23 +547,28 @@ Advanced Search Examples:
 * ``title:europe || title:africa`` will look for datasets containing "europe"
   or "africa" in its title.
 
-* ``title: "european census" ~ 4`` A proximity search looks for terms that
-  are within a specific distance from one another. This example will look for
-  datasets which title contains the words "european" and "census" within a
-  distance of 4 words.
+* ``title:"european census"`` will look for datasets whose title contains
+  the phrase "european census".
 
-* ``author:powell~`` CKAN supports fuzzy searches based on the Levenshtein
-  Distance, or Edit Distance algorithm. To do a fuzzy search use the "~"
-  symbol at the end of a single-word term. In this example words like
-  "jowell" or "pomell" will also be found.
+* ``metadata_modified:[2024-01-01T00:00:00Z TO *]`` will look for datasets
+  modified since the start of 2024. Date math such as ``NOW-7DAYS`` is
+  accepted in ranges too.
+
+Proximity (``"european census"~4``) and fuzzy (``powell~``) searches are
+not supported: the ``~`` modifier is accepted and ignored, so the query
+runs as an exact phrase or word. Term boosts (``census^2``) are ignored as
+well.
 
 
 .. note::
 
-    Field names used in advanced search may differ from Datasets Attributes,
-    the mapping rules are defined in the ``schema.xml`` file. You can use ``title``
-    to search by the dataset name and ``text`` to look in a catch-all field that
-    includes author, license, maintainer, tags, etc.
+    Field names used in advanced search are those of the search index
+    (see :doc:`maintaining/search`), which can differ from the dataset
+    attributes: for example ``organization`` holds the organization name,
+    ``res_format`` the resource formats and custom fields appear as
+    ``extras_<name>``. You can use ``title`` to search by the dataset
+    title, ``name`` for its URL name and ``text`` to look in a catch-all
+    field that includes author, license, maintainer, tags, etc.
 
 .. note::
 

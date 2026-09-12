@@ -1662,10 +1662,10 @@ def package_search(context: Context, data_dict: DataDict) -> ActionResult.Packag
 
     **Search Parameters:**
 
-    For more in depth treatment of each parameter, please read the
-    documentation of the search query syntax in the user guide.
-
-    This action accepts a *subset* of the Lucene search query parameters:
+    ``q``, ``fq`` and ``sort`` use a subset of the Lucene query syntax,
+    described in the user guide: ``field:term``, ``field:"a phrase"``,
+    wildcards ``*`` and ``?``, ``+`` and ``-`` modifiers, ``AND``, ``OR``,
+    ``NOT``, parentheses and ranges ``field:[a TO b]``.
 
 
     :param q: the search query.  Optional.  Default: ``"*:*"``
@@ -1716,12 +1716,16 @@ def package_search(context: Context, data_dict: DataDict) -> ActionResult.Packag
     :param use_default_schema: use default package schema instead of
         a custom schema defined with an IDatasetForm plugin (default: ``False``)
     :type use_default_schema: bool
+    :param fl: the fields to return for each result, as a list such as
+        ``['id', 'extras_custom_field']``. Optional. When not given, each
+        result is the full dataset dict.
+    :type fl: list of strings
 
 
-    The following advanced parameters are accepted as well for
-    compatibility; how much of them a search backend honours is up to
-    the backend (the built-in PostgreSQL one uses ``qf`` and ignores the
-    rest):
+    The following parameters are accepted as well for compatibility with
+    earlier versions; whether a search backend honours them is up to the
+    backend. The built-in PostgreSQL backend ignores them all: the weight
+    of each field in the relevance score is fixed.
 
     ``qf``, ``wt``, ``bf``, ``boost``, ``tie``, ``defType``, ``mm``
 
@@ -1771,14 +1775,12 @@ def package_search(context: Context, data_dict: DataDict) -> ActionResult.Packag
 
     **Limitations:**
 
-    The full Lucene query language is not exposed, including.
-
-    fl
-        The parameter that controls which fields are returned in the search
-        query.
-        fl can be  None or a list of result fields, such as
-        ['id', 'extras_custom_field'].
-        if fl = None, datasets are returned as a list of full dictionary.
+    The full Lucene query language is not exposed. Local parameters
+    (``{!...}``), function queries and anything else outside the subset
+    above are rejected with a validation error rather than executed.
+    Term boosts (``term^2``) and fuzzy or proximity modifiers (``term~``,
+    ``"a phrase"~4``) are accepted and ignored: the query runs as an exact
+    term or phrase.
     '''
     # sometimes context['schema'] is None
     schema = (context.get('schema') or
@@ -3120,9 +3122,9 @@ def job_list(context: Context, data_dict: DataDict) -> ActionResult.JobList:
     :returns: The currently enqueued background jobs.
     :rtype: list
 
-    Will return the list in the way that RQ workers will execute the jobs.
-    Thus the left most non-empty queue will be emptied first
-    before the next right non-empty one.
+    Will return the list in the order the workers execute the jobs: the
+    left most non-empty queue is emptied first before the next non-empty
+    one to the right.
 
     .. versionadded:: 2.7
     '''
