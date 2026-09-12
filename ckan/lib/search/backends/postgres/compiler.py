@@ -241,9 +241,11 @@ class Compiler:
                 return field
             return "cast(doc->>%s as timestamp)" % self.bind(field)
         if isinstance(value, (int, float)):
+            # a number stored as a number, or as a numeric string (extras)
             key = self.bind(field)
             return ("(CASE WHEN jsonb_typeof(doc->%s) = 'number' "
-                    "THEN cast(doc->>%s as numeric) END)" % (key, key))
+                    "OR doc->>%s ~ '^\\s*-?[0-9]+(\\.[0-9]+)?\\s*$' "
+                    "THEN cast(doc->>%s as numeric) END)" % (key, key, key))
         return self.scalar(field)
 
     def elements(self, field: str) -> str:
@@ -318,6 +320,12 @@ class Compiler:
             return parse_date(value, self.now)
         if field in FieldTypes.int_fields:
             return parse_number(value)
+        if not FieldTypes.is_column(field):
+            # a numeric bound on a JSON field compares as a number
+            try:
+                return parse_number(value)
+            except SearchQueryError:
+                pass
         return value
 
     # -- sorting -----------------------------------------------------------
