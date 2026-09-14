@@ -1,0 +1,1 @@
+Midnight Blue theme: the resource format badges of a dataset in a list are shown in one row again (the rule was nested under .dataset-content, but the list is its sibling).

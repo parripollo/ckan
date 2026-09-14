@@ -27,13 +27,14 @@
             color: #667085;
             font-weight: 500;
         }
+    }
 
-        .dataset-resources {
-            margin-top: 8px;
+    // the format badges: a sibling of .dataset-content in package_item.html
+    .dataset-resources {
+        margin-top: 8px;
 
-            li {
-                display: inline;
-            }
+        li {
+            display: inline;
         }
     }
 }
