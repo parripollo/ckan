@@ -1,0 +1,1 @@
+The "Groups" tab of a dataset no longer shows "0 Datasets" on every group card (midnight-blue theme); the count is omitted when it is not available.
