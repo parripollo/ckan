@@ -313,12 +313,14 @@ groups:
         description: |
             Specifies which type of session interface to use. The default
             ``cookie`` value stores the session data inside a JSON-serialized signed
-            cookie. Alternatively, this can be set to any of the types
-            supported by `Flask-Session
+            cookie. ``postgres`` stores the session data server side in
+            the ``session_store`` table of the CKAN database. Alternatively,
+            this can be set to any of the types supported by `Flask-Session
             <https://flask-session.readthedocs.io/en/latest/config.html#SESSION_TYPE>`_
-            like ``redis``, ``filesystem``, etc. Keep in mind
-            that certain session types require additional Python packages and configuration settings.
-            Setting a not supported value will raise an exception on startup.
+            like ``filesystem``, etc. Keep in mind that certain session
+            types require additional Python packages and configuration
+            settings. Setting a not supported value will raise an exception
+            on startup.
 
       - key: SESSION_COOKIE_NAME
         flask: true
@@ -907,35 +909,41 @@ groups:
         default: default
         example: my_ckan_instance
         description: |
-          CKAN uses Solr to index and search packages. The search index is
-          linked to the value of the ``ckan.site_id``, so if you have more than
-          one CKAN instance using the same `solr_url`_, they will each have a
-          separate search index as long as their ``ckan.site_id`` values are
+          The search index is linked to the value of the ``ckan.site_id``,
+          so if you have more than one CKAN instance sharing a search index,
+          they will each have a separate index as long as their
+          ``ckan.site_id`` values are
           different. If you are only running a single CKAN instance then this
           can be ignored.
 
           .. note:: If you change this value, you need to rebuild the search index.
 
-      - key: solr_url
-        placeholder: http://127.0.0.1:8983/solr/ckan
-        required: true
-        example: http://solr.okfn.org:8983/solr/ckan-schema-2.0
+      - key: ckan.search.backend
+        default: postgres
+        example: mymodule.search:MyBackend
         description: |
-          This configures the Solr server used for search. The Solr schema
-          found at that URL must be one of the ones in ``ckan/config/solr``
-          (generally the most recent one). A check of the schema version number
-          occurs when CKAN starts.
+          Search backend used to index and query datasets. Built-in
+          backends: ``postgres`` (full text search on the CKAN database,
+          no extra services needed). Extensions can register
+          more through the ``ISearchBackend`` plugin interface, and a
+          dotted path to a ``SearchBackend`` subclass
+          (``package.module:ClassName``) is also accepted.
 
-          Optionally, ``solr_user`` and ``solr_password`` can also be
-          configured to specify HTTP Basic authentication details for all Solr
-          requests.
+          .. note:: If you change this value, you need to rebuild the search index.
 
-          .. note::  If you change this value, you need to rebuild the search index.
+      - key: ckan.search.postgres.text_config
+        default: ckan_english
+        example: spanish
+        description: |
+          PostgreSQL text search configuration (see ``\dF`` in ``psql``)
+          used by the ``postgres`` search backend to stem and match words,
+          both when indexing and when searching. The default
+          ``ckan_english`` is created by the CKAN migrations: English
+          stemming without stop words, which is how CKAN always searched.
+          Any configuration installed in the database can be used
+          (``spanish``, ``simple`` to disable stemming, ...).
 
-      - key: solr_user
-        description: User to use in HTTP Basic Authentication when connecting to Solr
-      - key: solr_password
-        description: Password to use in HTTP Basic Authentication when connecting to Solr
+          .. note:: If you change this value, you need to rebuild the search index.
 
       - key: ckan.search.remove_deleted_packages
         type: bool
@@ -946,25 +954,6 @@ groups:
           setting to ``False``. This will enable the  ``include_deleted``
           parameter in the  :py:func:`ckan.logic.action.get.package_search`
           API action.
-
-      - key: ckan.search.solr_commit
-        type: bool
-        default: true
-        example: false
-        description: |
-          Make ckan commit changes solr after every dataset update change. Turn
-          this to false if on solr 4.0 and you have automatic (soft)commits
-          enabled to improve dataset update/create speed (however there may be
-          a slight delay before dataset gets seen in results).
-
-      - key: ckan.search.solr_allowed_query_parsers
-        type: list
-        default: []
-        example: ["bool", "knn"]
-        description: |
-          Local parameters are not allowed when passing queries to Solr. An exception to this is when passing local parameters for special query parsers, that need to be enabled explicitly using this config option. For instance, the example provided would allow sending queries like the following::
-            search_params["q"] = "{!bool must=test}..."
-            search_params["q"] = "{!knn field=vector topK=10}..."
 
       - key: ckan.search.show_all_types
         default: dataset
@@ -1047,23 +1036,6 @@ groups:
 
           * ``group_list``'s ``limit`` when ``all_fields=true``
           * ``organization_list``'s ``limit`` when ``all_fields=true``
-
-      - key: solr_timeout
-        type: int
-        default: 60
-        example: 120
-        description: |
-          The option defines the timeout in seconds until giving up on a
-          request. Raising this value might help you if you encounter a timeout
-          exception.
-
-  - annotation: Redis Settings
-    options:
-      - key: ckan.redis.url
-        default: redis://localhost:6379/0
-        validators: not_empty
-        example: redis://localhost:7000/1
-        description: URL to your Redis instance, including the database to be used.
 
   - annotation: CORS Settings
     options:
@@ -1979,6 +1951,18 @@ groups:
 
   - annotation: Background Job Settings
     options:
+      - key: ckan.jobs.backend
+        default: postgres
+        example: mymodule.jobs:MyBackend
+        description: |
+          Storage of the background jobs queue. The built-in ``postgres``
+          backend keeps the jobs in the ``background_job`` table of the
+          CKAN database, so no extra service is needed; workers
+          (``ckan jobs worker``) poll it. Extensions can register other
+          backends through the ``IJobBackend`` plugin interface, and a
+          dotted path to a ``JobBackend`` subclass
+          (``package.module:ClassName``) is also accepted.
+
       - key: ckan.jobs.timeout
         type: int
         default: 180

@@ -272,8 +272,8 @@ class TestResourceQuery(object):
         assert result["count"] == 1, result
 
 
-def test_convert_legacy_params_to_solr():
-    convert = search.convert_legacy_parameters_to_solr
+def test_convert_legacy_params():
+    convert = search.convert_legacy_parameters
     assert convert({"title": "bob"}) == {"q": "title:bob"}
     assert convert({"title": "bob", "fl": "name"}) == {
         "q": "title:bob",
@@ -348,9 +348,11 @@ class TestPackageQuery:
         assert result["results"] == ["verycomplexnameoffirstdataset"]
 
     def test_name_multiple_results(self):
-        factories.Dataset(name="first-record")
-        factories.Dataset(name="second-record")
-        factories.Dataset(name="third-dataset")
+        # explicit texts: the factory defaults are random sentences that
+        # could contain the searched word
+        factories.Dataset(name="first-record", title="First", notes="One")
+        factories.Dataset(name="second-record", title="Second", notes="Two")
+        factories.Dataset(name="third-dataset", title="Third", notes="Three")
         result = search.query_for(model.Package).run({"q": u"record"})
         assert set(result["results"]) == {"first-record", "second-record"}
 
