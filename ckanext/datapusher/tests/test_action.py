@@ -345,7 +345,9 @@ class TestSubmit:
 
     def test_read_timeout_marks_task_as_error(self, app, monkeypatch):
         user = factories.User()
-        resource = factories.Resource(user=user)
+        # a format the datapusher ignores: with a random one that it takes
+        # (csv, xls...), creating the resource already submits it for real
+        resource = factories.Resource(user=user, format="pdf")
         monkeypatch.setattr(
             "requests.post",
             mock.Mock(side_effect=requests.exceptions.ReadTimeout(

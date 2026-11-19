@@ -456,6 +456,7 @@ class TestPackageQuery:
 
         factories.Dataset(
             name="warandpeace",
+            title="Another Book",
             groups=[{"id": david["id"]}],
             tags=[{"name": "russian"}, {"name": "Flexible \u30a1"}]
         )
