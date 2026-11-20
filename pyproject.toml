@@ -27,6 +27,19 @@ optional-dependencies.dev = { file = ["dev-requirements.txt"] }
 [dependency-groups]
 dev = ["ckan[dev]"]
 
+# The dependencies are read from requirements.in and dev-requirements.txt,
+# so uv has to re-read the project metadata when those files change. By
+# default it only watches pyproject.toml, setup.py and setup.cfg, and after
+# a pull that changed requirements.in it would write uv.lock back to the
+# old versions.
+[tool.uv]
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "setup.cfg" },
+    { file = "requirements.in" },
+    { file = "dev-requirements.txt" },
+]
+
 
 [tool.towncrier]
 directory = "changes"
