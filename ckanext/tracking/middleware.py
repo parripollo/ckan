@@ -52,7 +52,7 @@ def track_request(response: Response) -> Response:
                 url=data.get("url"),
                 tracking_type=data.get("type")
             )
-        except Exception:
-            logger.exception("Error tracking request")
+        except Exception as e:
+            logger.error("Error tracking request: %s", e)
 
     return response
