@@ -451,13 +451,16 @@ class TestOrganizationInnerSearch(object):
         organization."""
         org = factories.Organization()
         factories.Dataset(
-            title="Dataset One", owner_org=org["id"]
+            title="Dataset One", notes="",
+            owner_org=org["id"]
         )
         factories.Dataset(
-            title="Dataset Two", owner_org=org["id"]
+            title="Dataset Two", notes="",
+            owner_org=org["id"]
         )
         factories.Dataset(
-            title="Dataset Three", owner_org=org["id"]
+            title="Dataset Three", notes="",
+            owner_org=org["id"]
         )
 
         org_url = url_for("organization.read", id=org["name"])
@@ -480,13 +483,16 @@ class TestOrganizationInnerSearch(object):
         results."""
         org = factories.Organization()
         factories.Dataset(
-            title="Dataset One", owner_org=org["id"]
+            title="Dataset One", notes="",
+            owner_org=org["id"]
         )
         factories.Dataset(
-            title="Dataset Two", owner_org=org["id"]
+            title="Dataset Two", notes="",
+            owner_org=org["id"]
         )
         factories.Dataset(
-            title="Dataset Three", owner_org=org["id"]
+            title="Dataset Three", notes="",
+            owner_org=org["id"]
         )
 
         org_url = url_for("organization.read", id=org["name"])
@@ -514,13 +520,16 @@ class TestOrganizationInnerSearch(object):
 
         org = factories.Organization()
         factories.Dataset(
-            title="Dataset One", owner_org=org["id"]
+            title="Dataset One", notes="",
+            owner_org=org["id"]
         )
         factories.Dataset(
-            title="Dataset Two", owner_org=org["id"]
+            title="Dataset Two", notes="",
+            owner_org=org["id"]
         )
         factories.Dataset(
-            title="Dataset Three", owner_org=org["id"]
+            title="Dataset Three", notes="",
+            owner_org=org["id"]
         )
 
         org_url = url_for("organization.read", id=org["name"])
