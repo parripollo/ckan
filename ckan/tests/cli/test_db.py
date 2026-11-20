@@ -200,7 +200,7 @@ class TestDuplicateEmails:
 class TestDBCleanSearchIndex:
     """Tests for issue #8347: db clean should clear search index"""
 
-    def test_db_clean_clears_search_index(self, cli):
+    def test_db_clean_clears_search_index(self, cli, ckan_config):
         """Test that db clean automatically clears search index"""
         import ckan.tests.factories as factories
         import ckan.lib.search as search
