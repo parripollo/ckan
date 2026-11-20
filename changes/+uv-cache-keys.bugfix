@@ -1,0 +1,1 @@
+``uv sync`` and ``uv lock`` notice changes in ``requirements.in`` and ``dev-requirements.txt``; before, after a pull that changed them, ``uv.lock`` was written back to the old versions.
