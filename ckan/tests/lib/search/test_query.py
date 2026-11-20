@@ -373,8 +373,11 @@ class TestPackageQuery:
         assert result["count"] == 0, result
 
     def test_quotation(self):
-        pkg1 = factories.Dataset(title="Government Expenditure")
-        factories.Dataset(title="Government Extra Expenditure")
+        # empty notes: a phrase also matches across the end of the title
+        # and the start of the notes, and the random ones may start with
+        # "Government"
+        pkg1 = factories.Dataset(title="Government Expenditure", notes="")
+        factories.Dataset(title="Government Extra Expenditure", notes="")
         # multiple words quoted
         result = search.query_for(model.Package).run(
             {"q": u'"Government Expenditure"'}
