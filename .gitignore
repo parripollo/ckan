@@ -7,7 +7,6 @@ __pycache__/
 # other (candidates for removal)
 pip-requirements-local.txt
 tmp/
-solr_runtime/
 sandbox/
 fl_notes.txt
 
@@ -32,6 +31,7 @@ ckan_deb/DEBIAN/prerm
 ## this file is often created inside the clone
 ## to simplify CLI interactions
 ckan.ini
+storage/
 
 # node.js
 node_modules/

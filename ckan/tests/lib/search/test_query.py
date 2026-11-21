@@ -273,8 +273,8 @@ class TestResourceQuery(object):
         assert result["count"] == 1, result
 
 
-def test_convert_legacy_params_to_solr():
-    convert = search.convert_legacy_parameters_to_solr
+def test_convert_legacy_params():
+    convert = search.convert_legacy_parameters
     assert convert({"title": "bob"}) == {"q": "title:bob"}
     assert convert({"title": "bob", "fl": "name"}) == {
         "q": "title:bob",
@@ -349,9 +349,11 @@ class TestPackageQuery:
         assert result["results"] == ["verycomplexnameoffirstdataset"]
 
     def test_name_multiple_results(self):
-        factories.Dataset(name="first-record")
-        factories.Dataset(name="second-record")
-        factories.Dataset(name="third-dataset")
+        # explicit texts: the factory defaults are random sentences that
+        # could contain the searched word
+        factories.Dataset(name="first-record", title="First", notes="One")
+        factories.Dataset(name="second-record", title="Second", notes="Two")
+        factories.Dataset(name="third-dataset", title="Third", notes="Three")
         result = search.query_for(model.Package).run({"q": u"record"})
         assert set(result["results"]) == {"first-record", "second-record"}
 
@@ -371,8 +373,11 @@ class TestPackageQuery:
         assert result["count"] == 0, result
 
     def test_quotation(self):
-        pkg1 = factories.Dataset(title="Government Expenditure")
-        factories.Dataset(title="Government Extra Expenditure")
+        # empty notes: a phrase also matches across the end of the title
+        # and the start of the notes, and the random ones may start with
+        # "Government"
+        pkg1 = factories.Dataset(title="Government Expenditure", notes="")
+        factories.Dataset(title="Government Extra Expenditure", notes="")
         # multiple words quoted
         result = search.query_for(model.Package).run(
             {"q": u'"Government Expenditure"'}
@@ -384,6 +389,13 @@ class TestPackageQuery:
             {"q": u'"Expenditure Government"'}
         )
         assert result["results"] == []
+
+    def test_lone_minus_is_ignored(self):
+        pkg1 = factories.Dataset(title="Barrios de Cordoba")
+        factories.Dataset(title="Barrios de Rosario")
+        for q in ["barrios - cordoba", "barrios cordoba -", "- barrios + cordoba"]:
+            result = search.query_for(model.Package).run({"q": q})
+            assert result["results"] == [pkg1["name"]], q
 
     def test_tags_field_split_word(self):
         pkg1 = factories.Dataset(tags=[{"name": "split todo"}])
@@ -448,6 +460,7 @@ class TestPackageQuery:
 
         factories.Dataset(
             name="warandpeace",
+            title="Another Book",
             groups=[{"id": david["id"]}],
             tags=[{"name": "russian"}, {"name": "Flexible \u30a1"}]
         )

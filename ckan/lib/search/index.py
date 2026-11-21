@@ -1,7 +1,6 @@
 # encoding: utf-8
 from __future__ import annotations
 
-import socket
 import string
 import logging
 import collections
@@ -11,11 +10,10 @@ from dateutil.parser import parse, ParserError as DateParserError
 from typing import Any, NoReturn, Optional
 
 import six
-import pysolr
 from ckan.common import config
 
 
-from .common import SearchIndexError, make_connection
+from .backends import get_backend
 import ckan.model as model
 from ckan.plugins import (PluginImplementations,
                           IPackageController)
@@ -30,8 +28,8 @@ TYPE_FIELD = "entity_type"
 PACKAGE_TYPE = "package"
 KEY_CHARS = string.digits + string.ascii_letters + "_-"
 
-SOLR_FIELDS = [TYPE_FIELD, "res_url", "text", "urls", "indexed_ts", "site_id"]
-RESERVED_FIELDS = SOLR_FIELDS + ["tags", "groups", "res_name", "res_description",
+INDEX_FIELDS = [TYPE_FIELD, "res_url", "text", "urls", "indexed_ts", "site_id"]
+RESERVED_FIELDS = INDEX_FIELDS + ["tags", "groups", "res_name", "res_description",
                                  "res_format", "res_url", "res_type"]
 
 # Regular expression used to strip invalid XML characters
@@ -47,19 +45,7 @@ def escape_xml_illegal_chars(val: str, replacement: str='') -> str:
 
 
 def clear_index() -> None:
-    conn = make_connection()
-    query = "+site_id:\"%s\"" % (config.get('ckan.site_id'))
-    try:
-        conn.delete(q=query)
-        conn.commit()
-    except socket.error as e:
-        err = 'Could not connect to SOLR %r: %r' % (conn.url, e)
-        log.error(err)
-        raise SearchIndexError(err)
-    except pysolr.SolrError as e:
-        err = 'SOLR %r exception: %r' % (conn.url, e)
-        log.error(err)
-        raise SearchIndexError(err)
+    get_backend().clear(config.get('ckan.site_id'))
 
 
 class SearchIndex(object):
@@ -198,16 +184,22 @@ class PackageSearchIndex(SearchIndex):
         rel_dict: dict[str, list[Any]] = collections.defaultdict(list)
         subjects = pkg_dict.pop("relationships_as_subject", [])
         objects = pkg_dict.pop("relationships_as_object", [])
+
+        def related_package(rel: dict[str, Any], key: str) -> model.Package:
+            # the show schema knows no package id keys, so a validated
+            # dict carries them under __extras
+            pkg = model.Package.get(
+                rel.get(key) or rel.get('__extras', {}).get(key))
+            assert pkg
+            return pkg
+
         for rel in objects:
             type = model.PackageRelationship.forward_to_reverse_type(rel['type'])
-            pkg = model.Package.get(rel['subject_package_id'])
-            assert pkg
-            rel_dict[type].append(pkg.name)
+            rel_dict[type].append(
+                related_package(rel, 'subject_package_id').name)
         for rel in subjects:
-            type = rel['type']
-            pkg = model.Package.get(rel['object_package_id'])
-            assert pkg
-            rel_dict[type].append(pkg.name)
+            rel_dict[rel['type']].append(
+                related_package(rel, 'object_package_id').name)
         for key, value in rel_dict.items():
             if key not in pkg_dict:
                 pkg_dict[key] = value
@@ -240,9 +232,7 @@ class PackageSearchIndex(SearchIndex):
             if k in pkg_dict and pkg_dict[k]:
                 pkg_dict[k] = escape_xml_illegal_chars(pkg_dict[k])
 
-        # modify dates (SOLR is quite picky with dates, and only accepts ISO dates
-        # with UTC time (i.e trailing Z)
-        # See http://lucene.apache.org/solr/api/org/apache/solr/schema/DateField.html
+        # normalize dates: the index gets ISO dates in UTC (trailing Z)
         pkg_dict['metadata_created'] += 'Z'
         pkg_dict['metadata_modified'] += 'Z'
 
@@ -251,7 +241,7 @@ class PackageSearchIndex(SearchIndex):
 
         # Strip a selection of the fields.
         # These fields are possible candidates for sorting search results on,
-        # so we strip leading spaces because solr will sort " " before "a" or "A".
+        # so we strip leading spaces because " " would sort before "a" or "A".
         for field_name in ['title']:
             try:
                 value = pkg_dict.get(field_name)
@@ -276,44 +266,15 @@ class PackageSearchIndex(SearchIndex):
         pkg_dict['permission_labels'] = labels.get_dataset_labels(
             dataset) if dataset else [] # TestPackageSearchIndex-workaround
 
-        # send to solr:
-        conn = None
-        try:
-            conn = make_connection()
-            commit = not defer_commit
-            if not config.get('ckan.search.solr_commit'):
-                commit = False
-            conn.add(docs=[pkg_dict], commit=commit)
-        except pysolr.SolrError as e:
-            msg = 'Solr returned an error: {0}'.format(
-                e.args[0][:1000] # limit huge responses
-            )
-            raise SearchIndexError(msg)
-        except socket.error as e:
-            assert conn
-            err = 'Could not connect to Solr using {0}: {1}'.format(
-                conn.url, str(e))
-            log.error(err)
-            raise SearchIndexError(err)
+        # send to the search backend:
+        get_backend().index(pkg_dict, defer_commit=defer_commit)
 
         commit_debug_msg = 'Not committed yet' if defer_commit else 'Committed'
         log.debug('Updated index for %s [%s]', pkg_dict.get('name'), commit_debug_msg)
 
     def commit(self) -> None:
-        try:
-            conn = make_connection()
-            conn.commit(waitSearcher=False)
-        except Exception as e:
-            log.exception(e)
-            raise SearchIndexError(e)
+        get_backend().commit()
 
     def delete_package(self, pkg_dict: dict[str, Any]) -> None:
-        conn = make_connection()
-        query = "+%s:%s AND +(id:\"%s\" OR name:\"%s\") AND +site_id:\"%s\"" % \
-                (TYPE_FIELD, PACKAGE_TYPE, pkg_dict.get('id'), pkg_dict.get('id'), config.get('ckan.site_id'))
-        try:
-            commit = config.get('ckan.search.solr_commit')
-            conn.delete(q=query, commit=commit)
-        except Exception as e:
-            log.exception(e)
-            raise SearchIndexError(e)
+        get_backend().delete(
+            str(pkg_dict.get('id')), config.get('ckan.site_id'))

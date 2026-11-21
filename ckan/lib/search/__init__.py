@@ -6,11 +6,7 @@ import logging
 import sys
 import traceback
 
-import xml.dom.minidom
 from typing import Collection, Any, Optional, Type, overload
-
-import requests
-from requests.auth import HTTPBasicAuth
 
 import ckan.model as model
 import ckan.model.domain_object as domain_object
@@ -19,17 +15,18 @@ from ckan.types import Context
 from ckan.common import config
 
 from ckan.lib.search.common import (
-    make_connection, SearchIndexError, SearchQueryError,  # type: ignore
-    SolrConnectionError, # type: ignore
-    SearchError, is_available
+    SearchIndexError, SearchQueryError,  # type: ignore
+    SearchConnectionError,  # type: ignore
+    SearchError, is_available  # type: ignore
 )
+from ckan.lib.search.backends import get_backend
 from ckan.lib.search.index import (
     SearchIndex, PackageSearchIndex, NoopSearchIndex
 )
 from ckan.lib.search.query import (
     SearchQuery,
     TagSearchQuery, ResourceSearchQuery, PackageSearchQuery,
-    QueryOptions, convert_legacy_parameters_to_solr  # type: ignore
+    QueryOptions, convert_legacy_parameters  # type: ignore
 )
 
 
@@ -39,8 +36,6 @@ log = logging.getLogger(__name__)
 def text_traceback() -> str:
     return "".join(traceback.format_exception(*sys.exc_info()))
 
-
-SUPPORTED_SCHEMA_VERSIONS = ['2.8', '2.9', '2.10', '2.11', '2.12']
 
 DEFAULT_OPTIONS = {
     'limit': 20,
@@ -63,10 +58,6 @@ _QUERIES: dict[str, Type[SearchQuery]] = {
     'resource': ResourceSearchQuery,
     'package': PackageSearchQuery
 }
-
-SOLR_SCHEMA_FILE_OFFSET_MANAGED = '/schema?wt=schema.xml'
-SOLR_SCHEMA_FILE_OFFSET_CLASSIC = '/admin/file/?file=schema.xml'
-
 
 def _normalize_type(_type: Any) -> str:
     if isinstance(_type, domain_object.DomainObject):
@@ -235,91 +226,17 @@ def clear_all() -> None:
     log.debug("Clearing search index...")
     package_index.clear()
 
-def _get_schema_from_solr(file_offset: str):
-
-    timeout = config.get('ckan.requests.timeout')
-
-    solr_url: str = config["solr_url"]
-    solr_user: str | None = config["solr_user"]
-    solr_password: str | None = config["solr_password"]
-
-    url = solr_url.strip('/') + file_offset
-
-    if solr_user is not None and solr_password is not None:
-        response = requests.get(
-            url,
-            timeout=timeout,
-            auth=HTTPBasicAuth(solr_user, solr_password))
-    else:
-        response = requests.get(url, timeout=timeout)
-
-    return response
-
-def check_solr_schema_version(schema_file: Optional[str]=None) -> bool:
+def check_schema(schema_file: Optional[str] = None) -> bool:
     '''
-        Checks if the schema version of the SOLR server is compatible
-        with this CKAN version.
+        Checks that the schema of the configured search backend is
+        compatible with this CKAN version.
 
-        The schema will be retrieved from the SOLR server, using the
-        offset defined in SOLR_SCHEMA_FILE_OFFSET_MANAGED
-        ('/schema?wt=schema.xml'). If SOLR is set to use the manually
-        edited `schema.xml`, the schema will be retrieved from the SOLR
-        server using the offset defined in
-        SOLR_SCHEMA_FILE_OFFSET_CLASSIC ('/admin/file/?file=schema.xml').
-
-        The schema_file parameter allows to override this pointing to
-        different schema file, but it should only be used for testing
-        purposes.
-
-        If the CKAN instance is configured to not use SOLR or the SOLR
-        server is not available, the function will return False, as the
-        version check does not apply. If the SOLR server is available,
-        a SearchError exception will be thrown if the version could not
-        be extracted or it is not included in the supported versions list.
+        Returns False when the check does not apply (for instance because
+        the search engine is not available) and raises SearchError when
+        the schema is present but not supported.
 
         :schema_file: Absolute path to an alternative schema file. Should
                       be only used for testing purposes (Default is None)
     '''
+    return get_backend().check_schema(schema_file)
 
-    if not is_available():
-        # Something is wrong with the SOLR server
-        log.warning('Problems were found while connecting to the SOLR server')
-        return False
-
-    # Try to get the schema XML file to extract the version
-    if not schema_file:
-        try:
-            # Try Managed Schema
-            res = _get_schema_from_solr(SOLR_SCHEMA_FILE_OFFSET_MANAGED)
-            res.raise_for_status()
-        except requests.HTTPError:
-            # Fallback to Manually Edited schema.xml
-            res = _get_schema_from_solr(SOLR_SCHEMA_FILE_OFFSET_CLASSIC)
-        schema_content = res.text
-    else:
-        with open(schema_file, 'rb') as f:
-            schema_content = f.read()
-
-    tree = xml.dom.minidom.parseString(schema_content)
-
-    # Up to CKAN 2.9 the schema version was stored in the `version` attribute.
-    # Going forward, we are storing it in the `name` one in the form `ckan-X.Y`
-    version = ''
-    if tree.documentElement is not None:
-        name_attr = tree.documentElement.getAttribute('name')
-        if name_attr.startswith('ckan-'):
-            version = name_attr.split('-')[1]
-        else:
-            version = tree.documentElement.getAttribute('version')
-
-    if not len(version):
-        msg = 'Could not extract version info from the SOLR schema'
-        if schema_file:
-            msg += ', using file {}'.format(schema_file)
-        raise SearchError(msg)
-
-    if not version in SUPPORTED_SCHEMA_VERSIONS:
-        raise SearchError('SOLR schema version not supported: %s. Supported'
-                          ' versions are [%s]'
-                          % (version, ', '.join(SUPPORTED_SCHEMA_VERSIONS)))
-    return True

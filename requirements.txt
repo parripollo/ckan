@@ -28,7 +28,6 @@ click==8.5.0
     # via
     #   -r requirements.in
     #   flask
-    #   rq
 croniter==6.2.4
     # via rq
 dominate==2.9.1
@@ -94,13 +93,11 @@ pluggy==1.6.0
     # via file-keeper
 polib==1.2.0
     # via -r requirements.in
-psycopg2==2.9.13
+psycopg2-binary==2.9.13
     # via -r requirements.in
 pyjwt==2.15.1
     # via -r requirements.in
 pyparsing==3.3.3
-    # via -r requirements.in
-pysolr==3.11.0
     # via -r requirements.in
 python-dateutil==2.9.0.post0
     # via
@@ -119,13 +116,7 @@ pyyaml==6.0.3
     # via
     #   -r requirements.in
     #   webassets
-redis==8.1.0
-    # via rq
 requests==2.34.2
-    # via
-    #   -r requirements.in
-    #   pysolr
-rq==2.12.0
     # via -r requirements.in
 simplejson==4.2.0
     # via -r requirements.in

@@ -18,7 +18,7 @@ Some of the CKAN configuration options can be defined as `Environment variables`
 on the server operating system.
 
 These are generally low-level critical settings needed when setting up the application, like the database
-connection, the Solr server URL, etc. Sometimes it can be useful to define them as environment variables to
+connection, the site URL, etc. Sometimes it can be useful to define them as environment variables to
 automate and orchestrate deployments without having to first modify the `CKAN configuration file`_.
 
 These options are only read at startup time to update the ``config`` object used by CKAN,
@@ -447,3 +447,19 @@ level ini file.
 
 
 .. include:: ../_config_options.inc
+
+
+.. _solr_url:
+.. _ckan.search.solr_allowed_query_parsers:
+.. _ckan.redis.url:
+
+Options removed in this version
+-------------------------------
+
+CKAN no longer uses Solr or Redis, so ``solr_url``, ``solr_user``,
+``solr_password``, ``solr_timeout``, ``ckan.search.solr_commit``,
+``ckan.search.solr_allowed_query_parsers`` and ``ckan.redis.url`` do not
+exist any more. They are ignored (with a warning) if they are still
+present in an existing configuration file. Search is configured with
+:ref:`ckan.search.backend` and :ref:`ckan.search.postgres.text_config`,
+background jobs with :ref:`ckan.jobs.backend`.

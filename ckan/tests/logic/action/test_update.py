@@ -783,6 +783,18 @@ class TestDatasetUpdate(object):
         with pytest.raises(logic.NotFound):
             helpers.call_action('package_reindex', id="nonexistent")
 
+    def test_reindex_restores_missing_index_entry(self):
+        # no mock: the dataset really comes back to the search index
+        dataset = factories.Dataset()
+        logic.index_remove_package(dataset['id'])
+        found = helpers.call_action('package_search', q='*:*')
+        assert dataset['id'] not in [d['id'] for d in found['results']]
+
+        helpers.call_action('package_reindex', id=dataset['name'])
+
+        found = helpers.call_action('package_search', q='*:*')
+        assert dataset['id'] in [d['id'] for d in found['results']]
+
 
 @pytest.mark.ckan_config("ckan.views.default_views", "")
 @pytest.mark.ckan_config("ckan.plugins", "image_view")

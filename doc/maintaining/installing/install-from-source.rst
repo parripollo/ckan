@@ -4,7 +4,9 @@
 Installing CKAN from source
 ===========================
 
-CKAN is a Python application that requires three main services: PostgreSQL, Solr and Redis.
+CKAN is a Python application that requires one service: PostgreSQL.
+Search, background jobs and sessions all run inside PostgreSQL, so there
+is no search engine, message broker or cache server to install.
 
 This section describes how to install CKAN from source. Although
 :doc:`install-from-package` is simpler, it requires Ubuntu 20.04 64-bit or
@@ -19,6 +21,25 @@ wiki page.
 From source is also the right installation method for developers who want to
 work on CKAN.
 
+-----------
+Quick start
+-----------
+
+For a development machine you need PostgreSQL (``apt install postgresql``)
+and `uv <https://docs.astral.sh/uv/>`_. Then::
+
+    git clone https://github.com/parripollo/ckanito.git && cd ckanito
+    uv sync
+    uv run ckan dev sql | sudo -u postgres psql   # once: roles and databases
+    uv run ckan dev                               # http://localhost:5000
+
+``ckan dev`` writes ``ckan.ini`` in the current directory, runs the
+migrations, creates the sysadmin ``admin`` (its password is printed once;
+``uv run ckan user setpass admin`` sets a new one) and starts the
+development server. Ctrl+C stops it. Run it again after every
+``git pull``. To run the tests, see :doc:`/contributing/test`. The rest of
+this page is the full, production-oriented procedure.
+
 --------------------------------
 1. Install the required packages
 --------------------------------
@@ -26,7 +47,7 @@ work on CKAN.
 If you're using a Debian-based operating system (such as Ubuntu) install the
 required packages with this command::
 
-    sudo apt-get install python3-dev libpq-dev python3-pip python3-venv git-core redis-server libmagic1
+    sudo apt-get install python3-dev libpq-dev python3-pip python3-venv git-core libmagic1
 
 If you're not using a Debian-based operating system, find the best way to
 install the following packages on your operating system (see
@@ -42,8 +63,6 @@ libpq                  `The C programmer's interface to PostgreSQL <http://www.p
 pip                    `A tool for installing and managing Python packages <https://pip.pypa.io/en/stable/>`_
 python3-venv           `The Python3 virtual environment builder (or for Python 2 use 'virtualenv' instead) <https://virtualenv.pypa.io/en/latest/>`_
 Git                    `A distributed version control system <https://git-scm.com/book/en/v2/Getting-Started-Installing-Git>`_
-Apache Solr            `A search platform <https://lucene.apache.org/solr/>`_
-Redis                  `An in-memory data structure store <https://redis.io/>`_
 =====================  ===============================================
 
 
@@ -196,28 +215,29 @@ site_url
 
   Do not add a trailing slash to the URL.
 
-.. _setting up solr:
+.. _setting up the search index:
 
--------------
-5. Setup Solr
--------------
+--------------------------
+5. Setup the search index
+--------------------------
 
-.. include:: solr.rst
+Nothing to install: CKAN indexes datasets in its own PostgreSQL database
+(see :ref:`ckan.search.backend`). The index table is created by
+``ckan db init`` / ``ckan db upgrade`` and filled with
+``ckan search-index rebuild``. The words are stemmed with the
+:ref:`ckan.search.postgres.text_config` text search configuration.
 
 
 .. _postgres-init:
 
----------------
-6. Setup Redis
----------------
+-------------------------
+6. Setup background jobs
+-------------------------
 
-If you installed it locally on the first step, make sure you have a Redis
-instance running in the `6379` port.
-
-If you have Docker installed, you can setup a default Redis instance by
-running::
-
-    docker run --name ckan-redis -p 6379:6379 -d redis
+Background jobs are queued in the CKAN database and run by worker
+processes; see :doc:`/maintaining/background-tasks`. Nothing to install
+now: once the database is created, start a worker with ``ckan jobs
+worker`` (usually under Supervisor).
 
 -------------------------
 7. Create database tables
@@ -297,21 +317,6 @@ Now that you've installed CKAN, you should:
 ------------------------------
 Source install troubleshooting
 ------------------------------
-
-.. _solr troubleshooting:
-
-Solr setup troubleshooting
-==========================
-
-Solr requests and errors are logged in the web server log files.
-
-* For Jetty servers, the log files are::
-
-    /var/log/jetty/<date>.stderrout.log
-
-* For Tomcat servers, they're::
-
-    /var/log/tomcat6/catalina.<date>.log
 
 AttributeError: 'module' object has no attribute 'css/main.debug.css'
 ---------------------------------------------------------------------

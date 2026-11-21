@@ -92,6 +92,15 @@ class TestOrganizationRead(object):
         assert org["title"] in response
         assert org["description"] in response
 
+    @pytest.mark.parametrize("headers", [{}, {"HX-Request": "true"}])
+    def test_read_with_invalid_query(self, app, headers):
+        org = factories.Organization()
+        response = app.get(
+            url_for("organization.read", id=org["name"], q="--foo"),
+            headers=headers,
+        )
+        assert response.status_code == 200
+
     def test_read_redirect_when_given_id(self, app):
         org = factories.Organization()
         response = app.get(
@@ -442,13 +451,16 @@ class TestOrganizationInnerSearch(object):
         organization."""
         org = factories.Organization()
         factories.Dataset(
-            title="Dataset One", owner_org=org["id"]
+            title="Dataset One", notes="",
+            owner_org=org["id"]
         )
         factories.Dataset(
-            title="Dataset Two", owner_org=org["id"]
+            title="Dataset Two", notes="",
+            owner_org=org["id"]
         )
         factories.Dataset(
-            title="Dataset Three", owner_org=org["id"]
+            title="Dataset Three", notes="",
+            owner_org=org["id"]
         )
 
         org_url = url_for("organization.read", id=org["name"])
@@ -471,13 +483,16 @@ class TestOrganizationInnerSearch(object):
         results."""
         org = factories.Organization()
         factories.Dataset(
-            title="Dataset One", owner_org=org["id"]
+            title="Dataset One", notes="",
+            owner_org=org["id"]
         )
         factories.Dataset(
-            title="Dataset Two", owner_org=org["id"]
+            title="Dataset Two", notes="",
+            owner_org=org["id"]
         )
         factories.Dataset(
-            title="Dataset Three", owner_org=org["id"]
+            title="Dataset Three", notes="",
+            owner_org=org["id"]
         )
 
         org_url = url_for("organization.read", id=org["name"])
@@ -505,13 +520,16 @@ class TestOrganizationInnerSearch(object):
 
         org = factories.Organization()
         factories.Dataset(
-            title="Dataset One", owner_org=org["id"]
+            title="Dataset One", notes="",
+            owner_org=org["id"]
         )
         factories.Dataset(
-            title="Dataset Two", owner_org=org["id"]
+            title="Dataset Two", notes="",
+            owner_org=org["id"]
         )
         factories.Dataset(
-            title="Dataset Three", owner_org=org["id"]
+            title="Dataset Three", notes="",
+            owner_org=org["id"]
         )
 
         org_url = url_for("organization.read", id=org["name"])

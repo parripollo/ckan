@@ -70,6 +70,8 @@ __all__ = [
     "IBlueprint",
     "IPermissionLabels",
     "IForkObserver",
+    "ISearchBackend",
+    "IJobBackend",
     "IApiToken",
     "IClick",
     "ISignal",
@@ -526,7 +528,7 @@ class IPackageController(Interface):
 
     def before_dataset_index(self, pkg_dict: dict[str, Any]) -> dict[str, Any]:
         u'''
-        Extensions will receive what will be given to Solr for
+        Extensions will receive what will be given to the search index for
         indexing. This is essentially a flattened dict (except for
         multi-valued fields such as tags) of all the terms sent to
         the indexer. The extension can modify this by returning an
@@ -1608,7 +1610,7 @@ class IFacets(Interface):
 
     Dataset searches can be faceted on any field in the dataset schema that it
     makes sense to facet on. This means any dataset field that is in CKAN's
-    Solr search index, basically any field that you see returned by
+    search index, basically any field that you see returned by
     :py:func:`~ckan.logic.action.get.package_show`.
 
     If there are multiple ``IFacets`` plugins active at once, each plugin will
@@ -2527,3 +2529,45 @@ class INotifier(Interface):
 
         """
         return False
+
+
+class ISearchBackend(Interface):
+    u'''
+    Register additional search backends.
+
+    A search backend is a subclass of
+    :class:`ckan.lib.search.backends.base.SearchBackend` that indexes and
+    queries datasets on a particular engine. The backend in use is chosen
+    with the ``ckan.search.backend`` config option, which accepts any of
+    the names returned by this interface.
+    '''
+
+    def register_search_backends(self) -> dict[str, type]:
+        u'''
+        Return a mapping of backend name to backend class.
+
+        :returns: ``{name: SearchBackend subclass}``
+        :rtype: dict
+        '''
+        return {}
+
+
+class IJobBackend(Interface):
+    u'''
+    Register additional background job backends.
+
+    A job backend is a subclass of
+    :class:`ckan.lib.jobqueue.base.JobBackend` that stores and hands out
+    background jobs. The backend in use is chosen with the
+    ``ckan.jobs.backend`` config option, which accepts any of the names
+    returned by this interface.
+    '''
+
+    def register_job_backends(self) -> dict[str, type]:
+        u'''
+        Return a mapping of backend name to backend class.
+
+        :returns: ``{name: JobBackend subclass}``
+        :rtype: dict
+        '''
+        return {}
