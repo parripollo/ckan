@@ -295,10 +295,8 @@ def _get_field_info(
             and pa.attnum > 0'''
     )
     try:
-        # the driver already decodes the json value: there is no
-        # json_deserializer override on the engine any more
         return dict(
-            (n, json.loads(v) if isinstance(v, str) else v) for (n, v) in
+            (n, v) for (n, v) in
             connection.execute(qtext, {"res_id": resource_id}).fetchall()
             if v)
     except (TypeError, ValueError):  # don't die on non-json comments

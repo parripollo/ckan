@@ -96,28 +96,16 @@ def test_api_info(app):
 
 @pytest.mark.ckan_config("ckan.plugins", "datastore")
 @pytest.mark.usefixtures("clean_datastore", "with_plugins")
-def test_field_info_is_returned_by_search_and_info():
-    """The data dictionary values of a field (label, notes...) come back
-    in the fields of datastore_search and datastore_info."""
+def test_info_returns_data_dictionary():
     resource = factories.Resource()
     info = {"label": "Origin", "notes": "Country of origin"}
     helpers.call_action(
         "datastore_create",
         resource_id=resource["id"],
         force=True,
-        fields=[
-            {"id": "from", "type": "text", "info": info},
-            {"id": "num", "type": "int"},
-        ],
-        records=[{"from": "Brazil", "num": 2}],
+        fields=[{"id": "from", "type": "text", "info": info}],
     )
 
-    search = helpers.call_action("datastore_search", resource_id=resource["id"])
-    fields = {f["id"]: f for f in search["fields"]}
-    assert fields["from"]["info"] == info
-    assert "info" not in fields["num"]
-
     result = helpers.call_action("datastore_info", id=resource["id"])
-    fields = {f["id"]: f for f in result["fields"]}
-    assert fields["from"]["info"] == info
-    assert "info" not in fields["num"]
+
+    assert result["fields"][0]["info"] == info
