@@ -8,7 +8,7 @@ weighted full text vector.
 """
 from __future__ import annotations
 
-from sqlalchemy import types, Column, Table, Index
+from sqlalchemy import types, Column, Table, Index, DDL, event
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TSVECTOR
 
 from ckan.model import meta
@@ -55,3 +55,31 @@ package_search_index_table = Table(
     Index("idx_package_search_index_permission_labels",
           "permission_labels", postgresql_using="gin"),
 )
+
+# The text search configuration the backend uses by default: English
+# stemming without stop words, like CKAN always searched. Migration 110
+# creates it on `ckan db upgrade`; this does the same when the tables are
+# created from the models (`ckan db init`). Text search objects have no
+# IF NOT EXISTS, so check the catalog first.
+event.listen(package_search_index_table, "before_create", DDL("""
+    DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_ts_dict WHERE dictname = 'ckan_english_stem'
+        ) THEN
+            CREATE TEXT SEARCH DICTIONARY ckan_english_stem (
+                TEMPLATE = snowball, Language = english);
+        END IF;
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_ts_config WHERE cfgname = 'ckan_english'
+        ) THEN
+            CREATE TEXT SEARCH CONFIGURATION ckan_english (
+                COPY = english);
+            ALTER TEXT SEARCH CONFIGURATION ckan_english
+                ALTER MAPPING FOR asciiword, asciihword,
+                    hword_asciipart, word, hword, hword_part
+                WITH ckan_english_stem;
+        END IF;
+    END
+    $$;
+"""))
