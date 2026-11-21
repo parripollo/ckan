@@ -1,0 +1,1 @@
+``ckan db init`` creates the ``ckan_english`` text search configuration used by the PostgreSQL search backend; without it no dataset could be indexed on a new database.
